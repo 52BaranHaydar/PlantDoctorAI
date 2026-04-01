@@ -4,66 +4,48 @@
 //
 //  Created by Baran on 31.03.2026.
 //
+// PlantDisease.swift
+// PlantDoctorAI
+//
+// Temel veri modelleri ve hastalık veritabanı.
+// Model sınıf adları Create ML'in ürettiği
+// label isimlerle birebir eşleşiyor.
 
-import Foundation
 import SwiftUI
-// Struct kullanıyoruz çünkü
-// - Valur type: kopyaladığında bağımsız kopya oluşur
-// - Identifiable: SwiftUI List'te her satırı ayırt eder
-// - Codable: JSON'a dönüştürebilir (geleckte API için)
 
-struct PlantDisease: Identifiable, Codable{
-    // Her hastalığa benzersiz kimlil - SwiftUI List için zorunlu
+// MARK: - PlantDisease Modeli
+struct PlantDisease: Identifiable, Codable {
+
     let id: UUID
-    
-    // CoreMl modelinin ürettiği ham sınıf adı
-    // Örnek: "Tomato__Late_blight"
     let className: String
-    
-    // Kullanıcıya gösterilecek Türkçe isim
     let displayName: String
-    
-    // Hastalık açıklaması
     let description: String
-    
-    // Tedavi önerileri listesi - birden fazla öneri olabilir
     let treatments: [String]
-    
-    // Ciddiyet seviyesi: 1 (hafif) -> 5 (kritik)
     let severityLevel: Int
-    
-    // CoreML güven skoru: 0.0 ile 1.0 arası
-    // var kullanıyoruz çünkü tahmin sonrası atanacak
     var confidence: Double
-    
-    // Hesaplanan Özellikler
-    // "var" + süslü parantez = computed property
-    // Deger saklmaz, her seferinde hesaplanır
-    
-    
-    // 0.876 -> %87.6 formatında çevirir
-    var confidencePercentage: String{
+
+    // 0.876 → "%87.6"
+    var confidencePercentage: String {
         let formatter = NumberFormatter()
         formatter.numberStyle = .percent
         formatter.maximumFractionDigits = 1
         return formatter.string(from: NSNumber(value: confidence)) ?? "%0"
     }
-    
-    // Ciddiyet seviyesine göre SwiftUI rengi döner
-    // switch-case: her ihtimali tek tek kontrol eder
-    var severityColor: Color{
-        switch severityLevel{
-        case 1: return .green // Hafif
-        case 2: return .yellow // Orta
-        case 3: return .orange // Ciddi
-        case 4,5 : return .red // Kritik
-        default: return .gray // Bilinmiyor
+
+    // Ciddiyet seviyesine göre renk
+    var severityColor: Color {
+        switch severityLevel {
+        case 1:    return .green
+        case 2:    return .yellow
+        case 3:    return .orange
+        case 4, 5: return .red
+        default:   return .gray
         }
     }
-    
-    // Sayısal seviyesi Türkçe metne çevirir
-    var severityText: String{
-        switch severityLevel{
+
+    // Ciddiyet metni
+    var severityText: String {
+        switch severityLevel {
         case 1: return "Hafif"
         case 2: return "Orta"
         case 3: return "Ciddi"
@@ -72,10 +54,7 @@ struct PlantDisease: Identifiable, Codable{
         default: return "Bilinmiyor"
         }
     }
-    
-    // Kurucu Fonksiyon (Inıtializer)
-    // id parametresi varsayılan UUID() alır
-    // Yani çoğu zaman id vermene gerek olmaz
+
     init(
         id: UUID = UUID(),
         className: String,
@@ -84,7 +63,7 @@ struct PlantDisease: Identifiable, Codable{
         treatments: [String],
         severityLevel: Int,
         confidence: Double = 0.0
-    ){
+    ) {
         self.id = id
         self.className = className
         self.displayName = displayName
@@ -95,49 +74,32 @@ struct PlantDisease: Identifiable, Codable{
     }
 }
 
-
-// Bir teşhis oturumun tüm sonuçlarını bir arada tutar
-// ViewModel bu struct'ı üretir, View bu struct'ı gösterir
+// MARK: - DiagnosisResult
 struct DiagnosisResult: Identifiable {
-    
-    // Her sonuca benzersiz id-let: değişmez
     let id: UUID = UUID()
-    
-    // Kullanıcının çektiği orijinal fotoğraf
     let image: UIImage
-    
-    // En yüksek güvenlikli hasta tahmini
     let topDisease: PlantDisease
-    
-    // İlk 3 tahmn - Diğer İhtimaller için
     let topPredictions: [PlantDisease]
-    
-    // Teşhis tarihi ve saati
     let diagnosedAt: Date
-    
-    // Güven %60'ın üstünde true
     let isReliable: Bool
-    
-    // Güvenirlik mesajı - computed property
-    
-    var reliabilityMessage: String{
-        isReliable ? "Yüksek güvenirlilik" : "Düşük güvenirlilik - uzman görüşü alın"
+
+    var reliabilityMessage: String {
+        isReliable
+            ? "Yüksek güvenilirlik"
+            : "Düşük güvenilirlik — uzman görüşü alın"
     }
 }
 
-//  PlantDiseaseDatabase
-// "enum" kullanıyoruz çünkü bu sadece bir veri deposu
-// — hiç örneklenmemeli (new PlantDiseaseDatabase() olmaz)
-// static: sınıf adıyla direkt erişilir, nesne gerekmez
+// MARK: - PlantDiseaseDatabase
+// ⚠️ className değerleri Create ML'in ürettiği
+// label isimleriyle BIREBIR eşleşmeli!
 enum PlantDiseaseDatabase {
 
-    // Tüm hastalıklar: CoreML sınıf adı → PlantDisease nesnesi
-    // Key: "Tomato___Late_blight" gibi model çıktısı
-    // Value: Zengin bilgi içeren PlantDisease struct'ı
     static let diseases: [String: PlantDisease] = [
 
-        "Tomato___Late_blight": PlantDisease(
-            className: "Tomato___Late_blight",
+        // --- DOMATES ---
+        "Tomato_Late_blight": PlantDisease(
+            className: "Tomato_Late_blight",
             displayName: "Domates — Geç Yanıklık",
             description: "Phytophthora infestans mantarı neden olur. Yapraklarda kahverengi-siyah lekeler görülür. Çok hızlı yayılır.",
             treatments: [
@@ -148,10 +110,22 @@ enum PlantDiseaseDatabase {
             severityLevel: 4
         ),
 
-        "Tomato___healthy": PlantDisease(
-            className: "Tomato___healthy",
+        "Tomato_Early_blight": PlantDisease(
+            className: "Tomato_Early_blight",
+            displayName: "Domates — Erken Yanıklık",
+            description: "Alternaria solani mantarı. Alt yapraklardan başlar, halkalı koyu lekeler oluşur.",
+            treatments: [
+                "Etkilenen yaprakları temizle",
+                "Fungisit spreyi uygula",
+                "Mulch kullanarak toprak sıçramasını engelle"
+            ],
+            severityLevel: 3
+        ),
+
+        "Tomato_healthy": PlantDisease(
+            className: "Tomato_healthy",
             displayName: "Domates — Sağlıklı",
-            description: "Bitkide hastalık belirtisi tespit edilmedi.",
+            description: "Bitkide hastalık belirtisi tespit edilmedi. Yapraklar normal renk ve dokusunda.",
             treatments: [
                 "Düzenli sulama ve gübrelemeye devam et",
                 "Haftalık kontrol alışkanlığı edin"
@@ -159,10 +133,95 @@ enum PlantDiseaseDatabase {
             severityLevel: 1
         ),
 
+        "Tomato_Leaf_Mold": PlantDisease(
+            className: "Tomato_Leaf_Mold",
+            displayName: "Domates — Yaprak Küfü",
+            description: "Passalora fulva mantarı, nemli ortamlarda gelişir. Yaprak altında sarı-yeşil küf oluşur.",
+            treatments: [
+                "Serada nem oranını düşür (%85 altı)",
+                "Hava sirkülasyonunu artır",
+                "Biyofungisit uygula"
+            ],
+            severityLevel: 2
+        ),
+
+        "Tomato_Bacterial_spot": PlantDisease(
+            className: "Tomato_Bacterial_spot",
+            displayName: "Domates — Bakteriyel Leke",
+            description: "Xanthomonas bakterisi neden olur. Yaprak ve meyvelerde küçük koyu lekeler oluşur.",
+            treatments: [
+                "Bakır bazlı bakterisit uygula",
+                "Hasta bitkileri uzaklaştır",
+                "Sulama suyunu yapraklara değdirme"
+            ],
+            severityLevel: 3
+        ),
+
+        "Tomato__Target_Spot": PlantDisease(
+            className: "Tomato__Target_Spot",
+            displayName: "Domates — Hedef Leke",
+            description: "Corynespora cassiicola mantarı. Yapraklarda halka halka lekeler oluşur.",
+            treatments: [
+                "Fungisit uygula",
+                "Hasta yaprakları temizle",
+                "Bitki sıklığını azalt"
+            ],
+            severityLevel: 3
+        ),
+
+        "Tomato__Tomato_mosaic_virus": PlantDisease(
+            className: "Tomato__Tomato_mosaic_virus",
+            displayName: "Domates — Mozaik Virüsü",
+            description: "Yapraklarda mozaik desenli sararmalar oluşur. Virüs temas ve böcekle yayılır.",
+            treatments: [
+                "Hasta bitkileri hemen söküp yak",
+                "Yaprak bitleriyle mücadele et",
+                "Dayanıklı çeşit kullan"
+            ],
+            severityLevel: 4
+        ),
+
+        "Tomato__Tomato_YellowLeaf__Curl_Virus": PlantDisease(
+            className: "Tomato__Tomato_YellowLeaf__Curl_Virus",
+            displayName: "Domates — Sarı Yaprak Kıvırcıklık Virüsü",
+            description: "Beyaz sinek tarafından taşınan virüs. Yapraklar sararır ve kıvrılır.",
+            treatments: [
+                "Beyaz sinekle mücadele et (sarı yapışkan tuzak)",
+                "Hasta bitkileri söküp yak",
+                "Dayanıklı çeşit tercih et"
+            ],
+            severityLevel: 5
+        ),
+
+        "Tomato_Septoria_leaf_spot": PlantDisease(
+            className: "Tomato_Septoria_leaf_spot",
+            displayName: "Domates — Septoria Yaprak Lekesi",
+            description: "Septoria lycopersici mantarı. Alt yapraklarda küçük koyu lekeler oluşur.",
+            treatments: [
+                "Alt yaprakları temizle",
+                "Fungisit uygula",
+                "Bitkileri ıslak bırakma"
+            ],
+            severityLevel: 3
+        ),
+
+        "Tomato_Spider_mites_Two_spotted_spider_mite": PlantDisease(
+            className: "Tomato_Spider_mites_Two_spotted_spider_mite",
+            displayName: "Domates — Kırmızı Örümcek",
+            description: "Tetranychus urticae akarı. Yapraklarda sararmalar ve ince ağlar oluşur.",
+            treatments: [
+                "Akarisit uygula",
+                "Yaprakları suyla yıka",
+                "Nem oranını artır"
+            ],
+            severityLevel: 3
+        ),
+
+        // --- PATATES ---
         "Potato___Late_blight": PlantDisease(
             className: "Potato___Late_blight",
             displayName: "Patates — Geç Yanıklık",
-            description: "1840'larda İrlanda'da büyük kıtlığa yol açan P. infestans mantarıdır.",
+            description: "P. infestans mantarı. 1840'larda İrlanda'da büyük kıtlığa yol açtı. Çok tehlikeli.",
             treatments: [
                 "Etkilenen bitkileri hemen söküp yak",
                 "Ridomil Gold veya bakır fungisit uygula",
@@ -171,28 +230,63 @@ enum PlantDiseaseDatabase {
             severityLevel: 5
         ),
 
-        "Apple___Apple_scab": PlantDisease(
-            className: "Apple___Apple_scab",
-            displayName: "Elma — Karaleke",
-            description: "Venturia inaequalis mantarı. Yaprak ve meyvelerde koyu lekeler oluşur.",
+        "Potato___Early_blight": PlantDisease(
+            className: "Potato___Early_blight",
+            displayName: "Patates — Erken Yanıklık",
+            description: "Alternaria solani mantarı. Yapraklarda koyu halkalı lekeler oluşur.",
             treatments: [
-                "İlkbaharda fungisit uygula",
-                "Düşen yaprakları topla ve yok et"
+                "Etkilenen yaprakları temizle",
+                "Fungisit uygula",
+                "Nöbetleşe ekim uygula"
             ],
             severityLevel: 3
+        ),
+
+        "Potato___healthy": PlantDisease(
+            className: "Potato___healthy",
+            displayName: "Patates — Sağlıklı",
+            description: "Bitkide hastalık belirtisi yok. Büyüme normal seyrediyor.",
+            treatments: [
+                "Potasyum açısından zengin gübre kullan",
+                "Toprak pH'ını 5.5-6.0 arasında tut"
+            ],
+            severityLevel: 1
+        ),
+
+        // --- BİBER ---
+        "Pepper__bell___Bacterial_spot": PlantDisease(
+            className: "Pepper__bell___Bacterial_spot",
+            displayName: "Biber — Bakteriyel Leke",
+            description: "Xanthomonas bakterisi neden olur. Yaprak ve meyvelerde lekeler oluşur.",
+            treatments: [
+                "Bakır bazlı bakterisit uygula",
+                "Hasta yaprakları uzaklaştır",
+                "Sulama suyunu yapraklara değdirme"
+            ],
+            severityLevel: 3
+        ),
+
+        "Pepper__bell___healthy": PlantDisease(
+            className: "Pepper__bell___healthy",
+            displayName: "Biber — Sağlıklı",
+            description: "Bitkide hastalık belirtisi tespit edilmedi.",
+            treatments: [
+                "Düzenli sulama ve gübrelemeye devam et",
+                "Haftalık kontrol alışkanlığı edin"
+            ],
+            severityLevel: 1
         )
     ]
 
-    // Bilinmeyen hastalık gelirse varsayılan yanıt döner
-    // "??" nil-coalescing: sol taraf nil ise sağ tarafı kullan
+    // MARK: - Hastalık Arama
+    // Bilinmeyen sınıf gelirse varsayılan yanıt döner
     static func disease(for className: String) -> PlantDisease {
         diseases[className] ?? PlantDisease(
             className: className,
-            displayName: "Bilinmeyen Hastalık",
-            description: "Veritabanında bulunamadı. Uzmanla görüşün.",
+            displayName: "Bilinmeyen: \(className)",
+            description: "Bu hastalık veritabanında bulunamadı. Uzmanla görüşün.",
             treatments: ["Bitki uzmanına danışın"],
             severityLevel: 3
         )
     }
 }
-
